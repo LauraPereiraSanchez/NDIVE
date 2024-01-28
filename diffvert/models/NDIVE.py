@@ -131,72 +131,97 @@ class Network(nn.Module):
         )(
             masked_track_data
         )
-        track_in_vertex_weights = nn.Sequential(
-            [
-                nn.Dense(features=32, param_dtype=jnp.float64),
-                nn.relu,
-                nn.Dense(features=1, param_dtype=jnp.float64),
-            ]
-        )(track_embeddings).reshape(num_jets, max_num_tracks)
 
-        # use activation on predicted weights for tracks affecting decay vertex
-        track_in_vertex_weights = jnp.where(mask == 0, -jnp.inf, track_in_vertex_weights)
+                # Laura's addition
+        # Sum the tracks! I.e The jet pT feature shows the sum of the jet pT of the tracks instead of the jet pT for each track 
+        #input (n_jet, n_tracks, n_features) -> (n_jet, n_features)
+        import diffvert.models.auxiliary_task_networks as auxnets
+        jet_features = jnp.sum(track_embeddings, 1)
+        #num_vertex_pred = auxnets.NumVertexPredictionNetwork(jet_features)
+        num_vertex_pred = nn.Sequential([
+            nn.Dense(features=64, param_dtype=jnp.float64),
+            nn.relu,
+            nn.Dense(features=32, param_dtype=jnp.float64),
+            nn.relu,
+            nn.Dense(features=16, param_dtype=jnp.float64),
+            nn.relu,
+            nn.Dense(features=4, param_dtype=jnp.float64),
+        ])(jet_features)
 
-        if self.track_weight_activation == tc.WeightActivation.SOFTMAX:
-            track_in_vertex_weights = nn.softmax(track_in_vertex_weights, axis=1)
+        num_vertex_pred = nn.softmax(num_vertex_pred, axis=1)
 
-        if self.track_weight_activation == tc.WeightActivation.SIGMOID:
-            track_in_vertex_weights = nn.sigmoid(track_in_vertex_weights)
+        # calculate the truth number of vertices
+        big_mask = daf.create_tracks_mask(orig_tracks, pad_for_ghost=self.use_ghost_track) # mask to know which tracks are not real and should therefore be ignored
+        masked_vertex_index = jnp.where(big_mask == 0, 0, orig_tracks[:, :, daf.JetData.TRACK_VERTEX_INDEX]+1) # adding one to the track vertex index to get the number of vertex + applying the mask (all tracks have an associated vertex so we will never have 0 vertices if the track is real, we do have more than 3 sometimes)
+        num_vertex = jnp.max(masked_vertex_index, 1)
+        num_vertex_truth = nn.one_hot(num_vertex, 4) # If we have more than 3 vertices all probabilities will be 0
 
-        if self.track_weight_activation == tc.WeightActivation.PERFECT_WEIGHTS:
-            # perfect weights are 1 if from hadron decay vertex, 0 o.w.
-            perfect_weights = jnp.array(
-                abs(orig_tracks[:,:,daf.JetData.TRACK_PROD_VTX_Z]
-                    - jnp.repeat(
-                        orig_tracks[:,0,daf.JetData.HADRON_Z],
-                        max_num_tracks,axis=0
-                    ).reshape(num_jets,max_num_tracks)
-                ) < 1e-3,
-                dtype=jnp.float64
-            )
-            # set true weight for ghost track to be 1
-            if self.use_ghost_track:
-                perfect_weights = jnp.concatenate(
-                    (jnp.ones((num_jets,1),dtype=jnp.float64), perfect_weights),
-                    axis=1
-                )
-            track_in_vertex_weights = perfect_weights
+        # track_in_vertex_weights = nn.Sequential(
+        #     [
+        #         nn.Dense(features=32, param_dtype=jnp.float64),
+        #         nn.relu,
+        #         nn.Dense(features=1, param_dtype=jnp.float64),
+        #     ]
+        # )(track_embeddings).reshape(num_jets, max_num_tracks)
+
+        # # use activation on predicted weights for tracks affecting decay vertex
+        # track_in_vertex_weights = jnp.where(mask == 0, -jnp.inf, track_in_vertex_weights)
+
+        # if self.track_weight_activation == tc.WeightActivation.SOFTMAX:
+        #     track_in_vertex_weights = nn.softmax(track_in_vertex_weights, axis=1)
+
+        # if self.track_weight_activation == tc.WeightActivation.SIGMOID:
+        #     track_in_vertex_weights = nn.sigmoid(track_in_vertex_weights)
+
+        # if self.track_weight_activation == tc.WeightActivation.PERFECT_WEIGHTS:
+        #     # perfect weights are 1 if from hadron decay vertex, 0 o.w.
+        #     perfect_weights = jnp.array(
+        #         abs(orig_tracks[:,:,daf.JetData.TRACK_PROD_VTX_Z]
+        #             - jnp.repeat(
+        #                 orig_tracks[:,0,daf.JetData.HADRON_Z],
+        #                 max_num_tracks,axis=0
+        #             ).reshape(num_jets,max_num_tracks)
+        #         ) < 1e-3,
+        #         dtype=jnp.float64
+        #     )
+        #     # set true weight for ghost track to be 1
+        #     if self.use_ghost_track:
+        #         perfect_weights = jnp.concatenate(
+        #             (jnp.ones((num_jets,1),dtype=jnp.float64), perfect_weights),
+        #             axis=1
+        #         )
+        #     track_in_vertex_weights = perfect_weights
             
-        if self.track_weight_activation == tc.WeightActivation.NO_TRACK_SELECTION:
-            track_in_vertex_weights = jnp.where(mask != 0, 1, track_in_vertex_weights)
+        # if self.track_weight_activation == tc.WeightActivation.NO_TRACK_SELECTION:
+        #     track_in_vertex_weights = jnp.where(mask != 0, 1, track_in_vertex_weights)
 
-        track_in_vertex_weights = jnp.where(mask == 0, 1e-100, track_in_vertex_weights)
+        # track_in_vertex_weights = jnp.where(mask == 0, 1e-100, track_in_vertex_weights)
 
-        # do vertex fit with weights
-        vertex_fit, vertex_covariance_fit, vertex_fit_chi2 = billoir_vertex_fit(
-            tracks,
-            track_in_vertex_weights,
-            jnp.zeros((num_jets, 3)), # vertex seeded to be the origin
-        )
+        # # do vertex fit with weights
+        # vertex_fit, vertex_covariance_fit, vertex_fit_chi2 = billoir_vertex_fit(
+        #     tracks,
+        #     track_in_vertex_weights,
+        #     jnp.zeros((num_jets, 3)), # vertex seeded to be the origin
+        # )
 
-        # fix nans, potentially from masking issues
-        if self.clip_vertex:
-            vertex_fit = jnp.clip(vertex_fit, a_min=-4000.0, a_max=4000.0)
-        vertex_fit = jax.numpy.nan_to_num(
-            vertex_fit, nan=4000.0, posinf=4000.0, neginf=-4000.0,
-        )
-        vertex_covariance_fit = jax.numpy.nan_to_num(
-            vertex_covariance_fit, nan=1000.0, posinf=1000.0, neginf=1000.0,
-        )
-        vertex_fit_chi2 = jax.numpy.nan_to_num(
-            vertex_fit_chi2, nan=1000.0, posinf=1000.0, neginf=1000.0,
-        )
+        # # fix nans, potentially from masking issues
+        # if self.clip_vertex:
+        #     vertex_fit = jnp.clip(vertex_fit, a_min=-4000.0, a_max=4000.0)
+        # vertex_fit = jax.numpy.nan_to_num(
+        #     vertex_fit, nan=4000.0, posinf=4000.0, neginf=-4000.0,
+        # )
+        # vertex_covariance_fit = jax.numpy.nan_to_num(
+        #     vertex_covariance_fit, nan=1000.0, posinf=1000.0, neginf=1000.0,
+        # )
+        # vertex_fit_chi2 = jax.numpy.nan_to_num(
+        #     vertex_fit_chi2, nan=1000.0, posinf=1000.0, neginf=1000.0,
+        # )
 
-        vertex_fit = vertex_fit.reshape(num_jets, 3)
-        vertex_covariance_fit = jax.lax.stop_gradient(vertex_covariance_fit).reshape(num_jets, 3, 3)
-        vertex_fit_chi2 = jax.lax.stop_gradient(vertex_fit_chi2).reshape(num_jets, 1)
+        # vertex_fit = vertex_fit.reshape(num_jets, 3)
+        # vertex_covariance_fit = jax.lax.stop_gradient(vertex_covariance_fit).reshape(num_jets, 3, 3)
+        # vertex_fit_chi2 = jax.lax.stop_gradient(vertex_fit_chi2).reshape(num_jets, 1)
 
-        return vertex_fit, vertex_covariance_fit, track_in_vertex_weights, vertex_fit_chi2
+        return num_vertex_pred, num_vertex_truth #vertex_fit, vertex_covariance_fit, track_in_vertex_weights, vertex_fit_chi2
 
 
 def model_from_config(cfg: tc.TrainConfig):
@@ -215,7 +240,6 @@ def model_from_config(cfg: tc.TrainConfig):
         clip_vertex=cfg.clip_vertex,
     )
 
-
 def loss_function(ytrue, xtrue, outputs, cfg: tc.TrainConfig):
     """ compute loss for NDIVE. outputs vertex only
 
@@ -226,20 +250,36 @@ def loss_function(ytrue, xtrue, outputs, cfg: tc.TrainConfig):
     Returns:
         total loss, and tuple of individual computed losses
     """
-    vertex_fit = outputs[0]
+    num_vertex_pred = outputs[0]
+    num_vertex_truth = outputs[1]
+
+    # I am actually not using ytrue or xtrue values.. But the original code does not use ytrue either..
+    # I am also able to reproduce num_vertex_truth using xtrue
+
+        # temp_mask = daf.create_tracks_mask(xtrue)
+        # masked_vertex_index = jnp.where(temp_mask == 0, 0, xtrue[:, :, daf.JetData.TRACK_VERTEX_INDEX]+1)
+        # num_vertex = jnp.max(masked_vertex_index, 1)
+        # num_vertex_truth = nn.one_hot(num_vertex, 4) 
+
+    # calculate categorical cross entropy (copied from function except jnp.sum axis)
+    ypred = jnp.clip(num_vertex_pred, a_min=1e-6, a_max=1.0 - 1e-6)
+    loss = - num_vertex_truth * jnp.log(ypred)
+ 
+    num_vertex_loss = jnp.sum(loss, axis=1) # in original function axis = 2 but here it does not work
+    num_vertex_loss = jnp.mean(num_vertex_loss)
 
     # euclidean distance loss for vertex position
-    vertex_pred = vertex_fit.reshape(-1, 3)
-    vertex_true = xtrue[:, 0, daf.JetData.HADRON_X:daf.JetData.HADRON_Z+1].reshape(-1, 3)
-    loss_euclidean_distance = jnp.sqrt(jnp.sum((vertex_true - vertex_pred) ** 2, axis=1))
-    loss_euclidean_distance = jnp.mean(loss_euclidean_distance)
+    # vertex_pred = vertex_fit.reshape(-1, 3)
+    # vertex_true = xtrue[:, 0, daf.JetData.HADRON_X:daf.JetData.HADRON_Z+1].reshape(-1, 3)
+    # loss_euclidean_distance = jnp.sqrt(jnp.sum((vertex_true - vertex_pred) ** 2, axis=1))
+    # loss_euclidean_distance = jnp.mean(loss_euclidean_distance)
 
-    # mean absolute error loss for vertex position
-    loss_mean_abs_err = abs(vertex_true - vertex_pred)
-    loss_mean_abs_err = jnp.mean(loss_mean_abs_err)
+    # # mean absolute error loss for vertex position
+    # loss_mean_abs_err = abs(vertex_true - vertex_pred)
+    # loss_mean_abs_err = jnp.mean(loss_mean_abs_err)
 
-    loss_total = loss_mean_abs_err
-    if cfg.use_mse_loss:
-        loss_total = loss_euclidean_distance
+    # loss_total = loss_mean_abs_err
+    # if cfg.use_mse_loss:
+    #     loss_total = loss_euclidean_distance
 
-    return loss_total, (loss_mean_abs_err, loss_euclidean_distance)
+    return num_vertex_loss, (0, 0) #, (loss_mean_abs_err, loss_euclidean_distance)
