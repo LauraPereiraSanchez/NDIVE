@@ -7,6 +7,7 @@ model.
 
 Contains: NDIVE network, config to model function, and loss function
 """
+import optax
 import jax
 import jax.numpy as jnp
 from jax.config import config
@@ -135,15 +136,11 @@ class Network(nn.Module):
                 # Laura's addition
         # Sum the tracks! I.e The jet pT feature shows the sum of the jet pT of the tracks instead of the jet pT for each track 
         #input (n_jet, n_tracks, n_features) -> (n_jet, n_features)
-        import diffvert.models.auxiliary_task_networks as auxnets
         jet_features = jnp.sum(track_embeddings, 1)
-        #num_vertex_pred = auxnets.NumVertexPredictionNetwork(jet_features)
         num_vertex_pred = nn.Sequential([
             nn.Dense(features=64, param_dtype=jnp.float64),
             nn.relu,
-            nn.Dense(features=32, param_dtype=jnp.float64),
-            nn.relu,
-            nn.Dense(features=16, param_dtype=jnp.float64),
+            nn.Dense(features=64, param_dtype=jnp.float64),
             nn.relu,
             nn.Dense(features=4, param_dtype=jnp.float64),
         ])(jet_features)
@@ -152,7 +149,7 @@ class Network(nn.Module):
 
         # calculate the truth number of vertices
         big_mask = daf.create_tracks_mask(orig_tracks, pad_for_ghost=self.use_ghost_track) # mask to know which tracks are not real and should therefore be ignored
-        masked_vertex_index = jnp.where(big_mask == 0, 0, orig_tracks[:, :, daf.JetData.TRACK_VERTEX_INDEX]+1) # adding one to the track vertex index to get the number of vertex + applying the mask (all tracks have an associated vertex so we will never have 0 vertices if the track is real, we do have more than 3 sometimes)
+        masked_vertex_index = jnp.where(big_mask == 0, 0, orig_tracks[:, :, daf.JetData.TRACK_VERTEX_INDEX]) # applying the mask (all tracks have an associated vertex so we will never have 0 vertices if the track is real, we do have more than 3 sometimes)
         num_vertex = jnp.max(masked_vertex_index, 1)
         num_vertex_truth = nn.one_hot(num_vertex, 4) # If we have more than 3 vertices all probabilities will be 0
 
@@ -253,6 +250,11 @@ def loss_function(ytrue, xtrue, outputs, cfg: tc.TrainConfig):
     num_vertex_pred = outputs[0]
     num_vertex_truth = outputs[1]
 
+    optax_loss = optax.softmax_cross_entropy(num_vertex_pred, num_vertex_truth)
+    import chex
+    chex.assert_type([logits], float)
+    defined_optax_loss = -jnp.sum(labels * jax.nn.log_softmax(logits, axis=-1), axis=-1)
+
     # I am actually not using ytrue or xtrue values.. But the original code does not use ytrue either..
     # I am also able to reproduce num_vertex_truth using xtrue
 
@@ -266,6 +268,7 @@ def loss_function(ytrue, xtrue, outputs, cfg: tc.TrainConfig):
     loss = - num_vertex_truth * jnp.log(ypred)
  
     num_vertex_loss = jnp.sum(loss, axis=1) # in original function axis = 2 but here it does not work
+    
     num_vertex_loss = jnp.mean(num_vertex_loss)
 
     # euclidean distance loss for vertex position
