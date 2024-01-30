@@ -122,7 +122,7 @@ class NumVertexPredictionNetwork(nn.Module):
         # Sum the tracks! I.e The jet pT feature shows the sum of the jet pT of the tracks instead of the jet pT for each track 
         #input (n_jet, n_tracks, n_features) -> (n_jet, n_features)
 
-        jet_features = jnp.sum(track_embeddings, 1)
+        jet_features = jnp.sum(track_embedding, 1)
 
         # Graph Attention Pooling to create jet embedding from all track embeddings
         #jet_features = nn.softmax(

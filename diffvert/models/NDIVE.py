@@ -247,12 +247,13 @@ def loss_function(ytrue, xtrue, outputs, cfg: tc.TrainConfig):
         masked_vertex_index = jnp.where(temp_mask == 0, 0, xtrue[:, :, daf.JetData.TRACK_VERTEX_INDEX])
         num_sv = jnp.max(masked_vertex_index, 1)
         num_sv = jnp.clip(num_sv, 0, 3) # if there are more than 3 SV just set it up to 3 i.e. 3 = 3+
-        num_vertex_true = nn.one_hot(num_vertex, 4)  # Truth number of SVs [0, 1, 2, 3+]
+        num_vertex_true = nn.one_hot(num_sv, 4)  # Truth number of SVs [0, 1, 2, 3+]
         
         # calculate loss
     
         # ---- quick method
         loss_num_sv = optax.softmax_cross_entropy(num_vertex_pred_raw, num_vertex_true)
+        loss_num_sv = jnp.mean(loss_num_sv)
         # ---- by hand
         #ypred = jnp.clip(num_vertex_pred, a_min=1e-6, a_max=1.0 - 1e-6)
         #loss_num_sv = jnp.sum( - num_vertex_true * jnp.log(ypred), axis=1)
