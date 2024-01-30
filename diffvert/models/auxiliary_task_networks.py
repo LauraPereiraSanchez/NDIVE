@@ -107,3 +107,44 @@ class TrackPairingPredictionNetwork(nn.Module):
         )
         track_pairing_pred = nn.sigmoid(track_pairing_pred)
         return track_pairing_pred
+
+
+class NumVertexPredictionNetwork(nn.Module):
+
+    """ Module for predicting probability of the number of SV 0/1/2/3+ inside the jet
+    
+    Output is probability distribution over four possible number of SVs
+    """
+    @nn.compact
+    def __call__(self, track_embedding):
+        """ Predicts number of SVs from track embedding. """
+
+        # Sum the tracks! I.e The jet pT feature shows the sum of the jet pT of the tracks instead of the jet pT for each track 
+        #input (n_jet, n_tracks, n_features) -> (n_jet, n_features)
+
+        jet_features = jnp.sum(track_embeddings, 1)
+
+        # Graph Attention Pooling to create jet embedding from all track embeddings
+        #jet_features = nn.softmax(
+        #    jnp.where(
+        #        mask == 0,
+        #        -jnp.inf,
+        #        nn.Dense(features=1, param_dtype=jnp.float64, name="JetEmbeddingPoolingDense")(
+        #            track_embeddings,
+        #        ).reshape(num_jets, max_num_tracks),
+        #    ),
+        #    axis=1,
+        #)
+
+
+        num_vertex_pred_raw = nn.Sequential([
+            nn.Dense(features=64, param_dtype=jnp.float64),
+            nn.relu,
+            nn.Dense(features=64, param_dtype=jnp.float64),
+            nn.relu,
+            nn.Dense(features=4, param_dtype=jnp.float64),
+        ])(jet_features)
+
+        num_vertex_pred = nn.softmax(num_vertex_pred_raw, axis=1)
+
+        return num_vertex_pred, num_vertex_pred_raw

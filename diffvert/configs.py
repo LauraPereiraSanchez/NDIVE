@@ -56,6 +56,31 @@ final_ndive_only_pf_track_selection = tc.TrainConfig(
     use_early_stopping=True,
 )
 
+SV_ndive = tc.TrainConfig(
+    model_name = "NDIVE",
+    num_epochs = 200,
+    samples = "/gpfs/slac/atlas/fs1/d/recsmith/Vertexing/samples/all_flavors/all_flavors",
+    batch_size = 100,
+    learning_rate = 1e-4,
+    num_attention_layers=1,
+    num_attention_heads=1,
+    jet_flavor_loss = False,
+    track_origin_loss = False,
+    track_pairing_loss = False,
+    vertex_loss = True,
+    num_sv_loss = True
+    chi_squared_loss=False,
+    clip_vertex=True,
+    use_ghost_track=False,
+    vertexer = int(tc.Vertexer.NDIVE),
+    track_weight_activation=int(tc.WeightActivation.SIGMOID),
+    use_adam=False,
+    use_learning_rate_decay_when_stalled=False,
+    config_name="num_SV_predictor",
+    use_early_stopping=True,
+)
+
+
 final_ndive_only = tc.TrainConfig(
     model_name = "NDIVE",
     num_epochs = 200,

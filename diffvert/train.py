@@ -524,6 +524,7 @@ def main():
         track_origin_loss=True,
         track_pairing_loss=True,
         vertex_loss=False,
+        num_sv_loss = False, # only true if ndive
         use_mse_loss=False,
         normalize_vertex_loss=False,
         chi_squared_loss=False,

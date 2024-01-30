@@ -13,6 +13,9 @@ from jax.config import config
 
 from flax import linen as nn
 
+import diffvert.models.auxiliary_task_networks as auxnets
+import optax
+
 from diffvert.utils.billoir_vertex_fit import billoir_vertex_fit
 from diffvert.utils.transformer_encoder import TransformerEncoder
 import diffvert.utils.data_format as daf
@@ -131,6 +134,9 @@ class Network(nn.Module):
         )(
             masked_track_data
         )
+
+        num_vertex_pred, num_vertex_pred_raw = auxnets.NumVertexPredictionNetwork()(track_embeddings)
+
         track_in_vertex_weights = nn.Sequential(
             [
                 nn.Dense(features=32, param_dtype=jnp.float64),
@@ -196,7 +202,7 @@ class Network(nn.Module):
         vertex_covariance_fit = jax.lax.stop_gradient(vertex_covariance_fit).reshape(num_jets, 3, 3)
         vertex_fit_chi2 = jax.lax.stop_gradient(vertex_fit_chi2).reshape(num_jets, 1)
 
-        return vertex_fit, vertex_covariance_fit, track_in_vertex_weights, vertex_fit_chi2
+        return vertex_fit, vertex_covariance_fit, track_in_vertex_weights, vertex_fit_chi2, num_vertex_pred, num_vertex_pred_raw
 
 
 def model_from_config(cfg: tc.TrainConfig):
@@ -226,6 +232,37 @@ def loss_function(ytrue, xtrue, outputs, cfg: tc.TrainConfig):
     Returns:
         total loss, and tuple of individual computed losses
     """
+
+    ############# SV counter #############
+
+    loss_total = 0.0
+    if cfg.num_sv_loss:
+
+        # get predictions
+        num_vertex_pred =  outputs[4]
+        num_vertex_pred_raw = outputs[5]
+    
+        # get true
+        temp_mask = daf.create_tracks_mask(xtrue) # which tracks are real?
+        masked_vertex_index = jnp.where(temp_mask == 0, 0, xtrue[:, :, daf.JetData.TRACK_VERTEX_INDEX])
+        num_sv = jnp.max(masked_vertex_index, 1)
+        num_sv = jnp.clip(num_sv, 0, 3) # if there are more than 3 SV just set it up to 3 i.e. 3 = 3+
+        num_vertex_true = nn.one_hot(num_vertex, 4)  # Truth number of SVs [0, 1, 2, 3+]
+        
+        # calculate loss
+    
+        # ---- quick method
+        loss_num_sv = optax.softmax_cross_entropy(num_vertex_pred_raw, num_vertex_true)
+        # ---- by hand
+        #ypred = jnp.clip(num_vertex_pred, a_min=1e-6, a_max=1.0 - 1e-6)
+        #loss_num_sv = jnp.sum( - num_vertex_true * jnp.log(ypred), axis=1)
+
+        loss_total += loss_num_sv
+
+        # only temporary to learn only num vertex
+        return loss_total, (loss_num_sv) # remove when training together with ndive
+
+    #######################################
     vertex_fit = outputs[0]
 
     # euclidean distance loss for vertex position
@@ -238,8 +275,13 @@ def loss_function(ytrue, xtrue, outputs, cfg: tc.TrainConfig):
     loss_mean_abs_err = abs(vertex_true - vertex_pred)
     loss_mean_abs_err = jnp.mean(loss_mean_abs_err)
 
-    loss_total = loss_mean_abs_err
     if cfg.use_mse_loss:
-        loss_total = loss_euclidean_distance
+        loss_total += loss_euclidean_distance
+    else:
+        loss_total += loss_mean_abs_err
 
-    return loss_total, (loss_mean_abs_err, loss_euclidean_distance)
+    if cfg.num_sv_loss:
+        return loss_total, (loss_mean_abs_err, loss_euclidean_distance, loss_num_sv)
+
+    else:
+        return loss_total, (loss_mean_abs_err, loss_euclidean_distance)

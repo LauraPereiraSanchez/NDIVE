@@ -43,6 +43,7 @@ class TrainConfig:
     track_origin_loss: bool = True
     track_pairing_loss: bool = True
     vertex_loss: bool = True
+    num_sv_loss: bool = False # only set to true if NDIVE
     use_mse_loss: bool = False
     normalize_vertex_loss: bool = False
     chi_squared_loss: bool = False
