@@ -238,6 +238,8 @@ def loss_function(ytrue, xtrue, outputs, cfg: tc.TrainConfig):
     loss_total = 0.0
     if cfg.num_sv_loss:
 
+        w = 0 # fraction that num SV should contribute to the loss function
+
         # get predictions
         num_vertex_pred =  outputs[4]
         num_vertex_pred_raw = outputs[5]
@@ -258,10 +260,10 @@ def loss_function(ytrue, xtrue, outputs, cfg: tc.TrainConfig):
         #ypred = jnp.clip(num_vertex_pred, a_min=1e-6, a_max=1.0 - 1e-6)
         #loss_num_sv = jnp.sum( - num_vertex_true * jnp.log(ypred), axis=1)
 
-        loss_total += loss_num_sv
+        loss_total += w*loss_num_sv
 
         # only temporary to learn only num vertex
-        return loss_total, (loss_num_sv) # remove when training together with ndive
+        #return loss_total, (loss_num_sv) # remove when training together with ndive
 
     #######################################
     vertex_fit = outputs[0]
@@ -277,9 +279,9 @@ def loss_function(ytrue, xtrue, outputs, cfg: tc.TrainConfig):
     loss_mean_abs_err = jnp.mean(loss_mean_abs_err)
 
     if cfg.use_mse_loss:
-        loss_total += loss_euclidean_distance
+        loss_total += (1-w)*loss_euclidean_distance
     else:
-        loss_total += loss_mean_abs_err
+        loss_total += (1-w)*loss_mean_abs_err
 
     if cfg.num_sv_loss:
         return loss_total, (loss_mean_abs_err, loss_euclidean_distance, loss_num_sv)
