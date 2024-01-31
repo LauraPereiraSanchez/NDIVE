@@ -312,10 +312,10 @@ def train_model(args, cfg: tc.TrainConfig, model_number=None):
                 y,
             )
 
-            # with jax.disable_jit():
-            loss_total, losses, grads = train_step_pmap(
-                key, state_dist, x_batch, y_batch
-            )
+            with jax.disable_jit():
+                loss_total, losses, grads = train_step_pmap(
+                    key, state_dist, x_batch, y_batch
+                )
 
             state = flax.jax_utils.unreplicate(state_dist)
             state = update_model(state, grads)
