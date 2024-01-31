@@ -236,9 +236,9 @@ def loss_function(ytrue, xtrue, outputs, cfg: tc.TrainConfig):
     ############# SV counter #############
 
     loss_total = 0.0
-    if cfg.num_sv_loss:
+    w = 0 # fraction that num SV should contribute to the loss function
 
-        w = 0 # fraction that num SV should contribute to the loss function
+    if cfg.num_sv_loss:
 
         # get predictions
         num_vertex_pred =  outputs[4]
