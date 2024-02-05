@@ -13,7 +13,7 @@ This is the code repository for the paper *Differentiable Vertex Fitting for Jet
 ```
 export XLA_PYTHON_CLIENT_PREALLOCATE=false
 export SINGULARITY_IMAGE_PATH=/fs/gpfs/slac/atlas/fs1/d/recsmith/Vertexing/diva.sif
-function jupyter() { singularity exec --nv -B /sdf,/gpfs,/scratch,/lscratch ${SINGULARITY_IMAGE_PATH} jupyter $@; }
+function jupyter() { singularity exec --nv -B /sdf,/fs, ${SINGULARITY_IMAGE_PATH} jupyter $@; }
 ```
 - Tick the box next to "Use JupyterLab instead of Jupyter Notebook?"
 - The following settings are recommended:
