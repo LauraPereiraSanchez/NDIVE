@@ -5,11 +5,11 @@ and including differentiable vertexing layer.
 """
 import jax
 import jax.numpy as jnp
-from jax.config import config
 
 import flax
 from flax.training import train_state, checkpoints
 from flax.training.early_stopping import EarlyStopping
+
 from flax.core.frozen_dict import freeze, unfreeze
 import diffvert.models.train_config as tc
 import optax
@@ -27,8 +27,8 @@ import os
 from functools import partial
 
 import hashlib
-config.update("jax_enable_x64", True)
-config.update("jax_debug_nans", False)
+jax.config.update("jax_enable_x64", True)
+jax.config.update("jax_debug_nans", False)
 
 
 def parse_args():
@@ -440,7 +440,7 @@ def train_model(args, cfg: tc.TrainConfig, model_number=None):
         train_total_losses.append(float(train_loss_total))
         test_total_losses.append(float(test_loss_total))
 
-        has_improved, early_stop = early_stop.update(test_loss_total)
+        early_stop = early_stop.update(test_loss_total)
 
         if len(train_aux_losses) == 0:
             for loss in train_losses:
@@ -490,7 +490,7 @@ def train_model(args, cfg: tc.TrainConfig, model_number=None):
             print(f"Early stopping on epoch {epoch}")
             break
 
-        if not has_improved:
+        if not early_stop.has_improved:
             stalled_epochs+=1
             # lower learning rate if see 5 epochs without improvement
             if stalled_epochs == 5 and cfg.use_learning_rate_decay_when_stalled:

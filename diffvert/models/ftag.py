@@ -10,7 +10,6 @@ Follows closely GN1 architecture: https://cds.cern.ch/record/2811135
 """
 import jax
 import jax.numpy as jnp
-from jax.config import config
 from flax import linen as nn
 
 from diffvert.utils.track_extrapolation import track_extrapolation
@@ -21,7 +20,7 @@ from diffvert.models.NDIVE import Network as NDIVE
 import diffvert.models.train_config as tc
 import diffvert.utils.data_format as daf
 
-config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 
 
 class Network(nn.Module):

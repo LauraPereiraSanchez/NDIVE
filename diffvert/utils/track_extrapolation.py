@@ -5,9 +5,8 @@ returns extrapolated track variables.
 """
 import jax
 import jax.numpy as jnp
-from jax.config import config
 import diffvert.utils.data_format as daf
-config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 
 @jax.jit
 def extrapolate_tracks_to_vertex(tracks,vertex):

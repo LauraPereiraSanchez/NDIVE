@@ -1,9 +1,9 @@
 """ Encoder flax module used for track embeddings. """
 import jax.numpy as jnp
-from jax.config import config
+import jax
 
 from flax import linen as nn
-config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 
 class TransformerEncoder(nn.Module):
     """ Transformer Encoder used for track data.
