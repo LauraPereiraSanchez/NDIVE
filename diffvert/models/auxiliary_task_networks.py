@@ -116,13 +116,20 @@ class NumVertexPredictionNetwork(nn.Module):
     Output is probability distribution over four possible number of SVs
     """
     @nn.compact
-    def __call__(self, track_embedding):
+    def __call__(self, track_embedding, mask_track_embeddings):
         """ Predicts number of SVs from track embedding. """
 
         # Sum the tracks! I.e The jet pT feature shows the sum of the jet pT of the tracks instead of the jet pT for each track 
         #input (n_jet, n_tracks, n_features) -> (n_jet, n_features)
 
-        jet_features = jnp.sum(track_embedding, 1)
+        masked_track_embeddings = jnp.where(mask_track_embeddings == 0, 0, track_embedding)
+
+        jet_features = jnp.average(track_embedding, 1, weights=mask_track_embeddings)
+        # print("Show track embeddings, mask, and jnp.average with mask as weight")
+        # print(track_embedding[0,:,0])
+        # print(mask_track_embeddings[0,:,0])
+        # print(jet_features[0, 0])
+        #jet_features = jnp.sum(track_embedding, 1)
 
         # Graph Attention Pooling to create jet embedding from all track embeddings
         #jet_features = nn.softmax(

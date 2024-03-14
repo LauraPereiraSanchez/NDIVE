@@ -10,9 +10,9 @@ code follows: https://www.sciencedirect.com/science/article/pii/0168900292908593
 """
 import jax
 import jax.numpy as jnp
-from jax.config import config
+
 import diffvert.utils.data_format as daf
-config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 
 
 def get_qmeas(track):
