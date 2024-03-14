@@ -11,6 +11,9 @@ This is the code repository for the paper *Differentiable Vertex Fitting for Jet
 - Under "Jupyter Instance" choose "Custom Singularity Image..."
 - Under "Commands to initiate Jupyter" paste the following:
 ```
+
+```
+```
 export XLA_PYTHON_CLIENT_PREALLOCATE=false
 export SINGULARITY_IMAGE_PATH=/gpfs/slac/atlas/fs1/d/recsmith/Vertexing/diva.sif
 function jupyter() { singularity exec --nv -B /sdf,/gpfs,/scratch,/lscratch ${SINGULARITY_IMAGE_PATH} jupyter $@; }
