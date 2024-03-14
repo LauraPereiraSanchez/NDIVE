@@ -9,7 +9,6 @@ Contains: NDIVE network, config to model function, and loss function
 """
 import jax
 import jax.numpy as jnp
-from jax.config import config
 
 from flax import linen as nn
 
@@ -22,7 +21,7 @@ import diffvert.utils.data_format as daf
 
 import diffvert.models.train_config as tc
 
-config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 
 
 class Network(nn.Module):
@@ -140,9 +139,7 @@ class Network(nn.Module):
             mask, track_embeddings.shape[-1]
         ).reshape(num_jets, max_num_tracks, track_embeddings.shape[-1])
 
-        masked_track_embeddings = jnp.where(mask_track_embeddings == 0, 0, track_embeddings)
-
-        num_vertex_pred, num_vertex_pred_raw = auxnets.NumVertexPredictionNetwork()(masked_track_embeddings)
+        num_vertex_pred, num_vertex_pred_raw = auxnets.NumVertexPredictionNetwork()(track_embeddings, mask_track_embeddings)
 
         
         # # use activation on predicted weights for tracks affecting decay vertex
@@ -250,42 +247,42 @@ def loss_function(ytrue, xtrue, outputs, cfg: tc.TrainConfig):
     loss_total = 0.0
     w = 1 # fraction that num SV should contribute to the loss function
 
-    if cfg.num_sv_loss:
+    #if cfg.num_sv_loss:
 
-        # get predictions
-        num_vertex_pred =  outputs[0] #4
-        num_vertex_pred_raw = outputs[1] #5
+    # get predictions
+    num_vertex_pred =  outputs[0] #4
+    num_vertex_pred_raw = outputs[1] #5
 
-        #print(num_vertex_pred_raw[0])
-        #print("Progress ")
-        #print(num_vertex_pred[0])
-        #print("vs")
-        # get true
-        temp_mask = daf.create_tracks_mask(xtrue) # which tracks are real?
-        masked_vertex_index = jnp.where(temp_mask == 0, 0, xtrue[:, :, daf.JetData.TRACK_VERTEX_INDEX])
-        num_sv = jnp.max(masked_vertex_index, 1)
-        num_sv = jnp.clip(num_sv, 0, 3) # if there are more than 3 SV just set it up to 3 i.e. 3 = 3+
-        num_vertex_true = nn.one_hot(num_sv, 4)  # Truth number of SVs [0, 1, 2, 3+]
-        
-        #print(num_vertex_true[0])
-        # calculate loss
+    #print(num_vertex_pred_raw[0])
+    #print("Progress ")
+    #print(num_vertex_pred[0])
+    #print("vs")
+    # get true
+    temp_mask = daf.create_tracks_mask(xtrue) # which tracks are real?
+    masked_vertex_index = jnp.where(temp_mask == 0, 0, xtrue[:, :, daf.JetData.TRACK_VERTEX_INDEX])
+    num_sv = jnp.max(masked_vertex_index, 1)
+    num_sv = jnp.clip(num_sv, 0, 3) # if there are more than 3 SV just set it up to 3 i.e. 3 = 3+
+    num_vertex_true = nn.one_hot(num_sv, 4)  # Truth number of SVs [0, 1, 2, 3+]
     
-        # ---- quick method
-        #loss_num_sv = optax.softmax_cross_entropy(num_vertex_pred_raw, num_vertex_true)
-        #loss_num_sv = jnp.mean(loss_num_sv)
-        # ---- by hand
-        ypred = jnp.clip(num_vertex_pred, a_min=1e-6, a_max=1.0 - 1e-6)
-        loss_num_sv = jnp.sum( - num_vertex_true * jnp.log(ypred), axis=1)
-        #print("loss")
-        #print(- num_vertex_true * jnp.log(ypred)[0,0])
-        loss_num_sv = jnp.mean(loss_num_sv)
-        loss_total += w*loss_num_sv
+    #print(num_vertex_true[0])
+    # calculate loss
 
-        # only temporary to learn only num vertex
-        #return loss_total, (loss_num_sv) # remove when training together with ndive
+    # ---- quick method
+    #loss_num_sv = optax.softmax_cross_entropy(num_vertex_pred_raw, num_vertex_true)
+    #loss_num_sv = jnp.mean(loss_num_sv)
+    # ---- by hand
+    ypred = jnp.clip(num_vertex_pred, a_min=1e-6, a_max=1.0 - 1e-6)
+    loss_num_sv = jnp.sum( - num_vertex_true * jnp.log(ypred), axis=1)
+    #print("loss")
+    #print(- num_vertex_true * jnp.log(ypred)[0,0])
+    loss_num_sv = jnp.mean(loss_num_sv)
+    loss_total += w*loss_num_sv
 
-    loss_mean_abs_err = 0
-    loss_euclidean_distance = 0
+    # only temporary to learn only num vertex
+    return loss_total, (loss_num_sv) # remove when training together with ndive
+
+    #loss_mean_abs_err = 0
+    #loss_euclidean_distance = 0
 
     '''
     #######################################
@@ -309,4 +306,5 @@ def loss_function(ytrue, xtrue, outputs, cfg: tc.TrainConfig):
     #if cfg.num_sv_loss:
     #return loss_total, (loss_num_sv)   
     '''
-    return loss_total, (loss_mean_abs_err, loss_euclidean_distance, loss_num_sv)
+    #return loss_total, (loss_mean_abs_err, loss_euclidean_distance, loss_num_sv)
+    #return loss_total, (loss_num_sv)   
