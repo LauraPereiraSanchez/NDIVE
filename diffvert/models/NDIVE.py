@@ -141,6 +141,11 @@ class Network(nn.Module):
 
         num_vertex_pred, num_vertex_pred_raw = auxnets.NumVertexPredictionNetwork()(track_embeddings, mask_track_embeddings)
 
+        # continue evaluation
+
+
+
+        
         
         # # use activation on predicted weights for tracks affecting decay vertex
 

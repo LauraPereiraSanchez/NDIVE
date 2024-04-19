@@ -35,7 +35,7 @@ final_ndive_only_no_track_selection = tc.TrainConfig(
 
 final_ndive_only_pf_track_selection = tc.TrainConfig(
     model_name = "NDIVE",
-    num_epochs = 200,
+    num_epochs = 10,
     samples = "/fs/ddn/sdf/group/atlas/d/lapereir/Vertexing/samples/all_flavors/all_flavors",
     batch_size = 100,
     learning_rate = 1e-4,
@@ -58,7 +58,7 @@ final_ndive_only_pf_track_selection = tc.TrainConfig(
 
 SV_ndive = tc.TrainConfig(
     model_name = "NDIVE",
-    num_epochs = 2,
+    num_epochs = 200,
     samples = "/fs/ddn/sdf/group/atlas/d/lapereir/Vertexing/samples/all_flavors/all_flavors",
     batch_size = 100,
     learning_rate = 1e-4,
@@ -76,7 +76,7 @@ SV_ndive = tc.TrainConfig(
     track_weight_activation=int(tc.WeightActivation.SIGMOID),
     use_adam=False,
     use_learning_rate_decay_when_stalled=False,
-    config_name="num_SV_predictor_test",
+    config_name="num_SV_predictor_v2.1attention",
     use_early_stopping=False,
 )
 
@@ -100,7 +100,7 @@ SV_ndive_v2 = tc.TrainConfig(
     track_weight_activation=int(tc.WeightActivation.SIGMOID),
     use_adam=False,
     use_learning_rate_decay_when_stalled=False,
-    config_name="num_SV_predictor_2attention",
+    config_name="num_SV_predictor_v2.2attention",
     use_early_stopping=True,
 )
 
