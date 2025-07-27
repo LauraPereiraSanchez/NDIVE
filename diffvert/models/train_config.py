@@ -6,7 +6,7 @@ model, such as activation functions and vertexing strategy.
 Options that require more than two possibilities are turned into enums to avoid strings in the
 model code.
 """
-import jax_dataclasses as jdc
+from dataclasses import dataclass
 from enum import IntEnum
 
 class WeightActivation(IntEnum):
@@ -24,10 +24,11 @@ class Vertexer(IntEnum):
     TRUE_VERTEX = 2
 
 
-@jdc.pytree_dataclass(frozen=True)
+@dataclass(frozen=True)
 class TrainConfig:
     """ Store hyperparameters and configurations (e.g. activation types) for training. """
 
+    new_samples: bool = False 
     model_name: str = "NDIVE"
     num_epochs: int = 300
     samples: str = "/gpfs/slac/atlas/fs1/d/recsmith/Vertexing/samples/all_flavors/all_flavors"

@@ -10,9 +10,16 @@ code follows: https://www.sciencedirect.com/science/article/pii/0168900292908593
 """
 import jax
 import jax.numpy as jnp
-from jax.config import config
-import diffvert.utils.data_format as daf
-config.update("jax_enable_x64", True)
+
+import os
+
+new_sampels = os.getenv("NEW_SAMPLES", "0") == "1"
+
+if new_sampels:
+    import diffvert.utils.new_data_format_ftag as daf
+else:
+    import diffvert.utils.data_format as daf
+jax.config.update("jax_enable_x64", True)
 
 
 def get_qmeas(track):

@@ -5,7 +5,7 @@ and including differentiable vertexing layer.
 """
 import jax
 import jax.numpy as jnp
-from jax.config import config
+
 
 import flax
 from flax.training import train_state, checkpoints
@@ -27,8 +27,8 @@ import os
 from functools import partial
 
 import hashlib
-config.update("jax_enable_x64", True)
-config.update("jax_debug_nans", False)
+jax.config.update("jax_enable_x64", True)
+jax.config.update("jax_debug_nans", False)
 
 
 def parse_args():
@@ -158,9 +158,22 @@ def train_model(args, cfg: tc.TrainConfig, model_number=None):
     Saves checkpoints every few epochs, as well as most recent checkpoint.
     """
     print("starting train.py:", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), flush=True)
+    nominal_batch_size = 10000
 
-    train_dl = torch.load(f"{cfg.samples}/train_dl.pth")
-    validate_dl = torch.load(f"{cfg.samples}/validate_dl.pth")
+
+    if cfg.new_samples:
+
+        os.environ["new_samples"] = "1"  
+        from diffvert.utils.data import load_data
+        
+        train_dl = load_data(f"{cfg.samples}/train_1_dataset.h5", batch_size=nominal_batch_size, shuffle=True, num_workers=0, drop_last=True)  #temp test
+        validate_dl = load_data(f"{cfg.samples}/validate_dataset.h5",  batch_size=nominal_batch_size, shuffle=False, num_workers=0, drop_last=True)
+
+    else:
+        os.environ["new_samples"] = "0"  
+    
+        train_dl = torch.load(f"{cfg.samples}/train_dl.pth")
+        validate_dl = torch.load(f"{cfg.samples}/validate_dl.pth")
 
     print(
         "train and validate loaded:",
@@ -178,7 +191,6 @@ def train_model(args, cfg: tc.TrainConfig, model_number=None):
     )
     loss_function = partial(loss_function_full, cfg=cfg)
 
-    nominal_batch_size = 10000
 
     device_count = jax.device_count()
     train_vmap_count = int(nominal_batch_size / device_count / cfg.batch_size)

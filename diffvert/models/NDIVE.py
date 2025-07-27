@@ -9,17 +9,24 @@ Contains: NDIVE network, config to model function, and loss function
 """
 import jax
 import jax.numpy as jnp
-from jax.config import config
 
 from flax import linen as nn
 
 from diffvert.utils.billoir_vertex_fit import billoir_vertex_fit
 from diffvert.utils.transformer_encoder import TransformerEncoder
-import diffvert.utils.data_format as daf
+
+import os
+
+new_sampels = os.getenv("NEW_SAMPLES", "0") == "1"
+
+if new_sampels:
+    import diffvert.utils.new_data_format_ftag as daf
+else:
+    import diffvert.utils.data_format as daf
 
 import diffvert.models.train_config as tc
 
-config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 
 
 class Network(nn.Module):
