@@ -6,6 +6,7 @@ and including differentiable vertexing layer.
 import jax
 import jax.numpy as jnp
 
+from dataclasses import asdict
 
 import flax
 from flax.training import train_state, checkpoints
@@ -25,6 +26,7 @@ import torch
 import os
 
 from functools import partial
+
 
 import hashlib
 jax.config.update("jax_enable_x64", True)
@@ -175,6 +177,7 @@ def train_model(args, cfg: tc.TrainConfig, model_number=None):
         train_dl = torch.load(f"{cfg.samples}/train_dl.pth")
         validate_dl = torch.load(f"{cfg.samples}/validate_dl.pth")
 
+
     print(
         "train and validate loaded:",
         datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -200,6 +203,7 @@ def train_model(args, cfg: tc.TrainConfig, model_number=None):
     rng, init_rng = jax.random.split(rng)
 
     model = model_from_config(cfg)
+
 
     print("starting model init:", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), flush=True)
 
@@ -306,7 +310,7 @@ def train_model(args, cfg: tc.TrainConfig, model_number=None):
                 print(f"Batch #{i}", flush=True)
             # if i>=1: break
 
-            x = jnp.array(d.x, dtype=jnp.float64)[:, :, 0:30]
+            x = jnp.array(d.x, dtype=jnp.float64)#[:, :, 0:30]
             y = jnp.array(d.y, dtype=jnp.float64)
 
             # shuffle jets in each batch during training
@@ -340,6 +344,7 @@ def train_model(args, cfg: tc.TrainConfig, model_number=None):
             else:
                 for i, loss in enumerate(losses):
                     batch_losses[i] += [np.mean(np.array(loss))]
+                    
 
         batch_loss_total = np.mean(batch_loss_total)
         batch_losses = np.array([np.mean(loss) for loss in batch_losses])
@@ -372,7 +377,7 @@ def train_model(args, cfg: tc.TrainConfig, model_number=None):
                 print(f"Batch #{i}", flush=True)
             # if i>=1: break
 
-            x = jnp.array(d.x, dtype=jnp.float64)[:, :, 0:30]
+            x = jnp.array(d.x, dtype=jnp.float64)#[:, :, 0:30]
             y = jnp.array(d.y, dtype=jnp.float64)
 
             # shuffle jets in each batch during training
@@ -400,6 +405,7 @@ def train_model(args, cfg: tc.TrainConfig, model_number=None):
             else:
                 for i, loss in enumerate(losses):
                     batch_losses[i] += [np.mean(np.array(loss))]
+
 
         batch_loss_total = np.mean(batch_loss_total)
         batch_losses = np.array([np.mean(loss) for loss in batch_losses])
@@ -452,7 +458,7 @@ def train_model(args, cfg: tc.TrainConfig, model_number=None):
         train_total_losses.append(float(train_loss_total))
         test_total_losses.append(float(test_loss_total))
 
-        has_improved, early_stop = early_stop.update(test_loss_total)
+        early_stop = early_stop.update(test_loss_total)
 
         if len(train_aux_losses) == 0:
             for loss in train_losses:
@@ -466,7 +472,9 @@ def train_model(args, cfg: tc.TrainConfig, model_number=None):
                 test_aux_losses[i].append(float(loss))
 
         if epoch >= 1:
-            ckpt = {"model": state, "config": cfg}
+
+            ckpt = {"model": state, "config": asdict(cfg)}
+
             checkpoints.save_checkpoint(
                 ckpt_dir=get_ckpt_dir(cfg, model_number=model_number),
                 target=ckpt,
@@ -502,7 +510,7 @@ def train_model(args, cfg: tc.TrainConfig, model_number=None):
             print(f"Early stopping on epoch {epoch}")
             break
 
-        if not has_improved:
+        if not early_stop.has_improved:
             stalled_epochs+=1
             # lower learning rate if see 5 epochs without improvement
             if stalled_epochs == 5 and cfg.use_learning_rate_decay_when_stalled:
@@ -517,6 +525,8 @@ def train_model(args, cfg: tc.TrainConfig, model_number=None):
                 stalled_epochs = 0
         else:
             stalled_epochs = 0
+
+
 
 
 def main():

@@ -19,7 +19,6 @@ import torch
 
 from functools import partial
 
-import diffvert.utils.data_format as daf
 from diffvert.models.train_config import TrainConfig
 
 import importlib
@@ -96,13 +95,6 @@ def get_test_output(
     print(test_vmap_count)
     jax.devices()
 
-    b_samples_dir = "/gpfs/slac/atlas/fs1/d/recsmith/Vertexing/samples/all_flavors/bjets"
-    c_samples_dir = "/gpfs/slac/atlas/fs1/d/recsmith/Vertexing/samples/all_flavors/cjets"
-    u_samples_dir = "/gpfs/slac/atlas/fs1/d/recsmith/Vertexing/samples/all_flavors/ujets"
-    b_test_dl = torch.load(f"{b_samples_dir}/test_dl.pth")
-    c_test_dl = torch.load(f"{c_samples_dir}/test_dl.pth")
-    u_test_dl = torch.load(f"{u_samples_dir}/test_dl.pth")
-
     # initialize model with checkpointed parameters
     restored_vals = checkpoints.restore_checkpoint(
         ckpt_dir=full_save_dir, target=None, step=0, parallel=False
@@ -120,6 +112,37 @@ def get_test_output(
         "model_from_config",
     )
     model = model_from_config(cfg)
+
+
+    if cfg.new_samples:
+
+        print("using Zenodo (new) samples")
+
+        from diffvert.utils.data import load_data
+        import diffvert.utils.new_data_format as daf
+
+
+        b_samples_dir = "/fs/ddn/sdf/group/atlas/d/lapereir/InesData/NEW_Jun2025-ordered_b_jets"
+        c_samples_dir = "/fs/ddn/sdf/group/atlas/d/lapereir/InesData/NEW_Jun2025-ordered_c_jets"
+        u_samples_dir = "/fs/ddn/sdf/group/atlas/d/lapereir/InesData/NEW_Jun2025-ordered_u_jets"
+
+        u_test_dl = load_data(f"{u_samples_dir}/test_dataset.h5", batch_size=500*jax.device_count(), drop_last=True)
+        b_test_dl = load_data(f"{b_samples_dir}/test_dataset.h5", batch_size=500*jax.device_count(), drop_last=True)
+        c_test_dl = load_data(f"{c_samples_dir}/test_dataset.h5", batch_size=500*jax.device_count(), drop_last=True) 
+
+
+    else:
+        import diffvert.utils.data_format as daf
+
+        b_samples_dir = "/fs/ddn/sdf/group/atlas/d/lapereir/Vertexing/samples/all_flavors/bjets"
+        c_samples_dir = "/fs/ddn/sdf/group/atlas/d/lapereir/Vertexing/samples/all_flavors/cjets"
+        u_samples_dir = "/fs/ddn/sdf/group/atlas/d/lapereir/Vertexing/samples/all_flavors/ujets"
+
+        b_test_dl = torch.load(f"{b_samples_dir}/test_dl.pth")
+        c_test_dl = torch.load(f"{c_samples_dir}/test_dl.pth")
+        u_test_dl = torch.load(f"{u_samples_dir}/test_dl.pth")
+
+    
 
     # set model parameters to checkpointed values
     rng = jax.random.PRNGKey(0)
@@ -210,12 +233,15 @@ def get_test_output(
 
         input_list = []
         output_list = []
-        for d in data_loader:
-            outs  = single_inference(state_dist, jnp.array(d.x), only_NDIVE)
-            input_list.append(jnp.array(d.x))
-            output_list.append(outs)
-        input_arr = jnp.concatenate(input_list)
-        output_arr = jnp.concatenate(output_list)
+        print("Total # batches = ", len(data_loader))
+        for i, d in enumerate(data_loader):
+            if i % 100 == 0: print("batch ", i)
+            x_device = jax.device_put(jnp.array(d.x))
+            outs = single_inference(state_dist, x_device, only_NDIVE)
+            input_list.append(np.array(d.x))
+            output_list.append(np.array(outs))
+        input_arr = np.concatenate(input_list)
+        output_arr = np.concatenate(output_list)
         print(f"final input shape: {input_arr.shape}")
         print(f"final output shape: {output_arr.shape}")
         return input_arr, output_arr

@@ -17,10 +17,10 @@ from diffvert.utils.transformer_encoder import TransformerEncoder
 
 import os
 
-new_sampels = os.getenv("NEW_SAMPLES", "0") == "1"
+new_samples = os.getenv("new_samples", "0") == "1"
 
-if new_sampels:
-    import diffvert.utils.new_data_format_ftag as daf
+if new_samples:
+    import diffvert.utils.new_data_format as daf
 else:
     import diffvert.utils.data_format as daf
 

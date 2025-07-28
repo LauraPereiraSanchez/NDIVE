@@ -56,10 +56,11 @@ final_ndive_only_pf_track_selection = tc.TrainConfig(
     use_early_stopping=True,
 )
 
-final_ndive_only = tc.TrainConfig(
+new_final_ndive_only = tc.TrainConfig(
+    new_samples = True,
     model_name = "NDIVE",
     num_epochs = 200,
-    samples = "/gpfs/slac/atlas/fs1/d/recsmith/Vertexing/samples/all_flavors/all_flavors",
+    samples = "/fs/ddn/sdf/group/atlas/d/lapereir/InesData/NEW_Jun2025-ordered_all_jets_v3/",                                                                                                                               
     batch_size = 100,
     learning_rate = 1e-4,
     num_attention_layers=1,
@@ -75,7 +76,33 @@ final_ndive_only = tc.TrainConfig(
     track_weight_activation=int(tc.WeightActivation.SIGMOID),
     use_adam=False,
     use_learning_rate_decay_when_stalled=False,
-    config_name="final_ndive_only",
+    config_name="original_NDIVE_final_ndive_only_NEW_samples_v2",
+    use_early_stopping=True,
+)
+
+final_ndive_only = tc.TrainConfig(
+    new_samples = False,
+    model_name = "NDIVE",
+    num_epochs = 200,
+    samples = "/fs/ddn/sdf/group/atlas/d/lapereir/Vertexing/samples/all_flavors/all_flavors",
+    #samples = "/gpfs/slac/atlas/fs1/d/recsmith/Vertexing/samples/all_flavors/all_flavors",
+    #samples = "/fs/ddn/sdf/group/atlas/d/lapereir/InesData/NEW_Jun2025-ordered_all_jets_v3/",
+    batch_size = 100,
+    learning_rate = 1e-4,
+    num_attention_layers=1,
+    num_attention_heads=1,
+    jet_flavor_loss = False,
+    track_origin_loss = False,
+    track_pairing_loss = False,
+    vertex_loss = True,
+    chi_squared_loss=False,
+    clip_vertex=True,
+    use_ghost_track=False,
+    vertexer = int(tc.Vertexer.NDIVE),
+    track_weight_activation=int(tc.WeightActivation.SIGMOID),
+    use_adam=False,
+    use_learning_rate_decay_when_stalled=False,
+    config_name="original_NDIVE_final_ndive_only_old_samples",
     use_early_stopping=True,
 )
 

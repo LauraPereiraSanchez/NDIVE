@@ -13,10 +13,10 @@ import jax.numpy as jnp
 
 import os
 
-new_sampels = os.getenv("NEW_SAMPLES", "0") == "1"
+new_sampels = os.getenv("new_samples", "0") == "1"
 
 if new_sampels:
-    import diffvert.utils.new_data_format_ftag as daf
+    import diffvert.utils.new_data_format as daf
 else:
     import diffvert.utils.data_format as daf
 jax.config.update("jax_enable_x64", True)
